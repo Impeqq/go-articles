@@ -9,8 +9,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	// Swagger
+	_ "gin/docs" // ← замените "gin" на имя модуля из go.mod
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title           Articles API
+// @version         1.0
+// @description     API для управления статьями
+// @host            localhost:8080
+// @BasePath        /
 func main() {
 	dsn := "host=localhost user=user password=password dbname=articlesdb port=5432 sslmode=disable TimeZone=UTC"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -24,9 +35,8 @@ func main() {
 
 	r := gin.Default()
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "pong"})
-	})
+	// Swagger UI
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	r.GET("/articles", func(c *gin.Context) {
 		articles, err := handlers.GetAllArticles(db)
