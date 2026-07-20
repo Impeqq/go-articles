@@ -1,17 +1,22 @@
 package main
 
 import (
-	"gin/internal/handlers"
-	"gin/internal/models"
+	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 
+	"gin/internal/handlers"
+	"gin/internal/models"
+
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	// Swagger
-	_ "gin/docs" // ← замените "gin" на имя модуля из go.mod
+	_ "gin/docs"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -23,7 +28,21 @@ import (
 // @host            localhost:8080
 // @BasePath        /
 func main() {
-	dsn := "host=localhost user=user password=password dbname=articlesdb port=5432 sslmode=disable TimeZone=UTC"
+	if err := godotenv.Load(); err != nil {
+		log.Println("no .env file found, using system env")
+	}
+
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
+		getEnv("DB_HOST", "localhost"),
+		getEnv("DB_USER", "user"),
+		getEnv("DB_PASSWORD", "password"),
+		getEnv("DB_NAME", "articlesdb"),
+		getEnv("DB_PORT", "5432"),
+		getEnv("DB_SSLMODE", "disable"),
+		getEnv("DB_TIMEZONE", "UTC"),
+	)
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database: " + err.Error())
@@ -33,9 +52,12 @@ func main() {
 		panic("failed to migrate: " + err.Error())
 	}
 
+	if mode := os.Getenv("GIN_MODE"); mode != "" {
+		gin.SetMode(mode)
+	}
+
 	r := gin.Default()
 
-	// Swagger UI
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	r.GET("/articles", func(c *gin.Context) {
@@ -109,5 +131,13 @@ func main() {
 		c.JSON(http.StatusNoContent, nil)
 	})
 
-	r.Run()
+	port := getEnv("SERVER_PORT", "8080")
+	r.Run(":" + port)
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
